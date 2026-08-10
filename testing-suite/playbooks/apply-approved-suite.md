@@ -1,30 +1,42 @@
 ---
-description: After approval, run the 6-agent implementation and testing flow.
+description: Run the approval-gated implementation and validation flow. Orchestrator gates; only TechLead writes.
 ---
 
-The developer has **already approved implementation**.
+Run the approved-fix implementation/testing flow for the **current project**.
 
-Run the 6-agent approved implementation/testing flow for the **current project**.
+The developer has approved the **findings** from a prior review. They have **not** yet approved an
+implementation. `Orchestrator` collects that approval at step 4, before any file is written.
 
 ## Scope & Variables
-- **$TARGET_SCOPE**: "The uncommitted modifications/files in the current workspace (as shown by git status/git diff)."
-- **$CONFINEMENT_POLICY**: "Audit and modify only the uncommitted files. Do not touch or modify files that are already committed unless they are part of the active uncommitted modifications."
-- Restrict all work to the **current project's uncommitted files only** plus `audit.md` when present.
-- TechLead is the only agent allowed to write.
-- Apply the Model Routing section from `skill://testing-suite/SKILL.md` before launching agents.
+- **`$TARGET_SCOPE`**: the uncommitted modifications/files in the current workspace (`git status` / `git diff`), unless `$ARGUMENTS` names a narrower scope.
+- **`$CONFINEMENT_POLICY`**: "Audit and modify only files inside `$TARGET_SCOPE`. Do not touch committed files unless they are part of the active uncommitted modifications."
+- `TechLead` is the **only** agent permitted to write. No other agent spawns anything; this playbook owns sequencing.
+- Model/reasoning defaults come from each agent's own frontmatter. Escalate per the Escalation policy in `skill://testing-suite/SKILL.md`.
+
 ## Required sequence
-1. **DatabaseAuditor**: re-check schemas, API contracts, UI typings, or nearest data-bearing contracts for the approved findings.
-2. **Tester**: identify the smallest useful tests and test gaps for the approved findings.
-3. **Critic**: consolidate the approved findings, contract risks, and test plan into a strict implementation brief.
-4. **TechLead**: implement only the approved and consolidated changes. TechLead is the only writer.
-5. **Validator**: run the relevant tests/typechecks and check coverage/flakiness risks after implementation.
-6. **Orchestrator**: present the final post-change report and remaining risks.
+
+| # | Agent | Writes? | Purpose |
+|---|---|---|---|
+| 1 | **DatabaseAuditor** | no | Re-check schemas, API contracts, and UI typings against the approved findings. |
+| 2 | **Tester** | no | Design the smallest useful tests, plus regression cases for any project checkpoint this change could re-trigger. |
+| 3 | **Critic** | no | Verify and veto the inputs; consolidate into one grounded implementation brief. |
+| 4 | **Orchestrator** | no | **APPROVAL GATE.** Present the brief and stop. Proceed only on an explicit YES. |
+| 5 | **TechLead** | **yes** | Implement exactly the approved brief. Nothing beyond it. |
+| 6 | **Validator** | no | Run tests/typechecks, check coverage, false coverage, and flakiness after the change. |
+
+Steps 1–3 may run in parallel where the runtime supports it **only if** `Critic` still receives both prior reports before producing the brief. Steps 4–6 are strictly sequential.
+
+**The gate is not optional.** If step 4 is skipped, the run is invalid — stop and report it rather than
+writing files. Silence or a follow-up question from the developer is not approval; only YES is.
+If the developer excludes individual items, `TechLead` implements the remainder and reports what was dropped.
 
 ## Output requirements
-- Show exactly which files TechLead changed.
-- Report typecheck/test outcomes.
-- Report any remaining issues.
-- End with a release-style summary for the developer.
+- The consolidated brief, and what `Critic` vetoed from it, with reasons.
+- The explicit approval that was given, and any items excluded.
+- Exactly which files `TechLead` changed, and what changed in each.
+- Typecheck and test outcomes from `Validator`, including coverage of the new logic.
+- Anything blocked because it fell outside `$TARGET_SCOPE`.
+- A short release-style summary, ending with remaining risk and how to roll back.
 
 ## Optional goal/context
 $ARGUMENTS

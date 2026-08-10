@@ -1,55 +1,103 @@
 ---
 name: testing-suite
-description: Dynamic multi-agent validation, code review (Clean Code & Clean Coder standards), and implementation suite.
+description: Multi-agent code review and approval-gated implementation, grounded in Clean Code & The Clean Coder.
 ---
 
 # Testing Suite
 
-This testing-suite is a plug-and-play multi-agent framework designed to perform read-only code review, validation, peer-review criticism, test design, and approval-gated architecture-compliant code modifications.
+A portable multi-agent framework for **read-only code review** and **approval-gated implementation**.
+Nine reviewers examine a change from independent angles; an Orchestrator synthesizes one verdict;
+exactly one agent may write, and only after you say YES.
 
-## Discovered Agent Services
-- **TestRunner** (`skill://testing-suite/agents/test-runner.md`): Runs the smallest relevant read-only tests and reports pass/fail details.
-- **LinterStaticAnalysis** (`skill://testing-suite/agents/linter-static-analysis.md`): Runs read-only lint/typecheck diagnostics and reports fixability.
-- **CodeReviewer** (`skill://testing-suite/agents/code-reviewer.md`): Reports up to 5 non-obvious code improvements grounded in Clean Code heuristics (Law of Demeter, CQS, Stepdown Rule, Null Hygiene, SRP) with before/after code snippets.
-- **SecurityReviewer** (`skill://testing-suite/agents/security-reviewer.md`): Checks injection, auth, secrets, prompt security, and sensitive error handling risks.
-- **QualityStyleReviewer** (`skill://testing-suite/agents/quality-style-reviewer.md`): Reviews complexity, dead code, duplication, and project conventions.
-- **TestQualityReviewer** (`skill://testing-suite/agents/test-quality-reviewer.md`): Reviews F.I.R.S.T. test principles, TDD Laws, Single Concept assertions, and Test Automation Pyramid hygiene.
-- **PerformanceReviewer** (`skill://testing-suite/agents/performance-reviewer.md`): Checks N+1s, blocking work, render churn, leaks, and hot paths.
-- **DependencyDeploymentReviewer** (`skill://testing-suite/agents/dependency-deployment-reviewer.md`): Reviews dependency, compatibility, migration, rollout, and observability risks.
-- **SimplificationMaintainabilityReviewer** (`skill://testing-suite/agents/simplification-maintainability-reviewer.md`): Checks whether the change can be simpler and better scoped.
-- **DatabaseAuditor** (`skill://testing-suite/agents/database-auditor.md`): Dynamically resolves contract surfaces (schemas, API boundaries, UI typings) and validates compatibility.
-- **Tester** (`skill://testing-suite/agents/tester.md`): Detects active test runners (Vitest/Playwright/Jest) and designs comprehensive, non-flaky test specifications.
-- **Critic** (`skill://testing-suite/agents/critic.md`): Multi-tier peer-review pipeline (SDE 1 -> SDE 2 -> Senior -> Head of Engineering) ensuring correctness.
-- **Orchestrator** (`skill://testing-suite/agents/orchestrator.md`): Unified report gatekeeper. Evaluates results, displays recommendations with code snippets, and requests explicit approval.
-- **TechLead** (`skill://testing-suite/agents/tech-lead.md`): The ONLY write-authorized agent in this suite. Implements verified changes safely.
-- **Validator** (`skill://testing-suite/agents/validator.md`): Verifies test outcomes, code typechecking, and regression tests.
+## Two flows
 
-## Default Playbooks
-- **Review My Code**: `skill://testing-suite/playbooks/code-review.md`
-- **Apply Approved Fixes**: `skill://testing-suite/playbooks/apply-approved-suite.md`
+**`/code-review` — 9 agents, read-only.** For uncommitted work, a PR, a branch diff, a commit, or
+named files. Runs TestRunner, LinterStaticAnalysis, CodeReviewer, SecurityReviewer,
+QualityStyleReviewer, TestQualityReviewer, PerformanceReviewer, DependencyDeploymentReviewer, and
+SimplificationMaintainabilityReviewer — then `Orchestrator` synthesizes findings into a merge verdict.
+Never edits files.
 
-## Slash Commands
-- `/code-review`: runs `skill://testing-suite/playbooks/code-review.md`
-- `/apply-approved-suite`: runs `skill://testing-suite/playbooks/apply-approved-suite.md`
+**`/apply-approved-suite` — 6 agents, write-gated.** Only after review findings are approved:
 
-## Flow Summary
-- **9-agent review flow** (`code-review.md`): read-only. Use this for uncommitted code, PR files, branch diffs, commits, or file paths. It runs 9 focused review agents (TestRunner, Linter, CodeReviewer, Security, QualityStyle, TestQuality, Performance, DependencyDeployment, SimplificationMaintainability), then `Orchestrator` synthesizes findings and gives a merge verdict.
-- **6-agent implementation flow** (`apply-approved-suite.md`): write-gated. Use this only after review findings are approved. It runs `DatabaseAuditor -> Tester -> Critic -> TechLead -> Validator -> Orchestrator`; only `TechLead` may write, and `Validator` runs the post-change tests/typechecks.
+```
+DatabaseAuditor -> Tester -> Critic -> Orchestrator [APPROVAL GATE] -> TechLead -> Validator
+```
 
-## Recommended Routing
-- Use **Review My Code** for the common case: uncommitted files, files in a PR, or a branch before merge.
-- Use **Apply Approved Fixes** only after review findings are approved.
-- For maximum testing confidence, run **Apply Approved Fixes** after approved changes so `Validator` reruns tests/typechecks and `Critic` checks the fix.
+`Orchestrator` presents the brief and **stops** for an explicit YES. `TechLead` is the only
+write-authorized agent and implements only what was approved. `Validator` re-runs tests afterward.
 
-## Model Routing
-- These agents are model-agnostic. If your runtime supports per-agent model overrides, override the `model` frontmatter using this section.
-- Gemini default: use **Gemini 3.5 Flash**. Keep `thinkingLevel: low` for mechanical checks, `medium` for normal review, and `high` only for security, deployment, architecture, implementation, and final validation.
-- Claude default: use **Sonnet** for TestRunner, LinterStaticAnalysis, CodeReviewer, QualityStyleReviewer, TestQualityReviewer, PerformanceReviewer, SimplificationMaintainabilityReviewer, Tester, and DatabaseAuditor.
-- Claude escalation: use **Opus** for SecurityReviewer, DependencyDeploymentReviewer, Critic, Orchestrator, TechLead, and Validator when the change touches auth, money, migrations, data integrity, public APIs, production rollout, or failed tests.
-- Token rule: start with the cheapest listed model/reasoning level; escalate only when the agent reports uncertainty, high-risk findings, failing tests, or conflicting evidence.
+> **Sequencing lives in the playbooks, not in the agents.** No agent spawns another; `Orchestrator`
+> spawns `TechLead` and only after approval. This is what makes the gate a structural property
+> rather than a promise in a prompt.
 
-## How to Run
-1. Read the agent configs and sequence playbooks using `skill://testing-suite/agents/<agent-name>.md` and `skill://testing-suite/playbooks/<playbook-name>.md`.
-2. Configure `$TARGET_SCOPE` and `$CONFINEMENT_POLICY` dynamically at execution time.
-3. For `code-review.md`, spawn the 9 review agents in parallel when supported, otherwise sequentially.
-4. For `apply-approved-suite.md`, spawn the 6 implementation agents sequentially and keep writes limited to `TechLead`.
+## Agents
+
+**Read-only reviewers**
+| Agent | Reviews for |
+|---|---|
+| `agents/test-runner.md` | Test results, duration, and E1/E2 one-step build & test |
+| `agents/linter-static-analysis.md` | Lint, typecheck, and LSP diagnostics |
+| `agents/code-reviewer.md` | Naming, function size & abstraction, arguments, CQS, Law of Demeter (gated on objects vs. data structures), null hygiene, SRP |
+| `agents/security-reviewer.md` | Injection, authz, secrets, prompt boundaries, leaky error handling |
+| `agents/quality-style-reviewer.md` | Duplication, comments (C1–C5), dead code, clutter, consistency |
+| `agents/test-quality-reviewer.md` | F.I.R.S.T., single concept, sufficiency (T1–T9), Test Automation Pyramid placement |
+| `agents/performance-reviewer.md` | N+1s, blocking work, render churn, leaks, unbounded loads |
+| `agents/dependency-deployment-reviewer.md` | Dependencies, boundary wrapping & learning tests, migrations, rollout, observability |
+| `agents/simplification-maintainability-reviewer.md` | Beck's Four Rules of Simple Design, YAGNI, scope atomicity |
+
+**Implementation flow**
+| Agent | Writes? | Role |
+|---|---|---|
+| `agents/database-auditor.md` | no | Locates the relevant contract surface (schema, API, UI typings) and audits conformance |
+| `agents/tester.md` | no | Detects the active runner and designs non-flaky tests, including checkpoint regressions |
+| `agents/critic.md` | no | Four-tier peer review (SDE 1 → SDE 2 → Senior → Head of Eng). Verifies, vetoes, consolidates |
+| `agents/orchestrator.md` | no | Synthesis and the approval gate. The only agent that may spawn `TechLead` |
+| `agents/tech-lead.md` | **yes** | The only write-authorized agent. Implements the approved brief |
+| `agents/validator.md` | no | Re-runs tests, checks coverage, false coverage, and flakiness |
+
+## Playbooks
+- **Review My Code** — `skill://testing-suite/playbooks/code-review.md` (`/code-review`)
+- **Apply Approved Fixes** — `skill://testing-suite/playbooks/apply-approved-suite.md` (`/apply-approved-suite`)
+
+## Project checkpoints — read this before sharing the suite
+
+The agents ship **general craft**; your repository ships **its own scar tissue**. Copy
+`project-checkpoints.example.md` into the root of the repo you want reviewed, as
+`project-checkpoints.md`, and fill it with the bugs that already bit you: ownership chains,
+error-handling contracts, framework gotchas, flow-consistency rules.
+
+Every agent reads `project-checkpoints.md`, `AGENTS.md`, `CLAUDE.md`, and `.cursorrules` at runtime.
+**Project conventions override generic book heuristics wherever they conflict.**
+
+Never hardcode domain specifics into an agent prompt — that is what makes the suite non-portable.
+
+## Model & reasoning routing
+
+**Each agent's `model` and `thinkingLevel` frontmatter is the single source of truth.** Runtimes that
+support per-agent overrides should read it from there. This file does not restate model names.
+
+**Reasoning tiers**, by the cost of being wrong:
+- `low` — mechanical checks with a verifiable output: TestRunner, LinterStaticAnalysis.
+- `medium` — judgement over a bounded diff: CodeReviewer, QualityStyleReviewer, TestQualityReviewer, PerformanceReviewer, SimplificationMaintainabilityReviewer, Tester.
+- `high` — where a wrong call ships a defect or a bad write: SecurityReviewer, DependencyDeploymentReviewer, DatabaseAuditor, Critic, Orchestrator, TechLead, Validator.
+
+**Escalation policy.** Start at the tier above. Escalate the model or reasoning level when the change
+touches **auth, money, migrations, data integrity, public APIs, or production rollout** — or when
+tests fail, an agent reports uncertainty, or two agents' findings conflict. Do not escalate for
+volume alone.
+
+## Grounding
+
+Principles are drawn from *Clean Code* (Martin, 2008) and *The Clean Coder* (Martin, 2011), applied
+with their own qualifiers intact:
+- The **Law of Demeter** does not apply to data structures — only to objects that hide data behind behaviour.
+- The **Test Automation Pyramid** has five tiers (Unit, Component, Integration, System, Manual Exploratory) and its numbers are *coverage of the system*, not shares of test count.
+- **Single Concept per Test** ranks above "one assert per test" — multiple asserts verifying one concept are correct.
+- The **Three Laws of TDD** govern write order, which a finished diff cannot show; reviewers check sufficiency and timeliness instead.
+- These heuristics are a school of thought, not laws. Findings must show a real cost to reading or changing the code.
+
+## How to run
+1. Read the playbook for the flow you want; it resolves `$TARGET_SCOPE` and `$CONFINEMENT_POLICY`.
+2. Pass both, plus any project-context file paths, to every agent.
+3. `/code-review`: run the 9 reviewers in parallel where supported, then `Orchestrator`.
+4. `/apply-approved-suite`: run the 6 agents in the documented order. Do not skip the gate at step 4.

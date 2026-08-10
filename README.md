@@ -1,62 +1,80 @@
-# DJ Skills Repository
+# DJ Skills
 
-This repository contains custom Agentic Coding Skills that can be loaded into AI coding assistants like Oh My Pi, Claude Code, or Cursor.
+Custom agentic coding skills, loadable into Claude Code, Codex, Pi, OhMyPi, or Cursor.
 
-### 📦 Installation Guide:
+## Skills
 
-#### Option A: Automatic Installation (Highly Recommended)
+| Skill | What it does |
+|---|---|
+| [`testing-suite`](./testing-suite) | Multi-agent code review (`/code-review`) and approval-gated implementation (`/apply-approved-suite`), grounded in *Clean Code* & *The Clean Coder*. |
 
-They can clone your repository and run:
+## Install & run
 
 ```bash
+git clone https://github.com/djdiptayan1/dj-skills.git
+cd dj-skills
 chmod +x ./testing-suite/install.sh && ./testing-suite/install.sh
 ```
 
-This script handles the config additions and directory symlinking automatically.
+Restart your assistant session, then from inside any git repository:
 
-#### Option B: Manual Setup by Agent Runtime
+```
+/code-review              # read-only review of your current changes
+/apply-approved-suite     # gated implementation, only after you approve findings
+```
 
-##### 1. PlotCode
+`/code-review` takes an optional scope — a path, branch, commit, or PR number — and any free-text
+context after it:
 
-PlotCode dynamically discovers skills in the project's local `.agents/skills` or `.claude/skills` directory:
+```
+/code-review src/modules/billing
+/code-review 1284 focus on migration safety
+```
+
+### One copy, every runtime
+
+The installer links each skill into a shared hub at `~/.agents/skills/`, then points every runtime
+at that one location — Claude Code, Codex, Pi, and OhMyPi all read the same files:
+
+```
+~/.agents/skills/<skill> ─────────► <your clone>/<skill>    ← the single source
+      ▲            ▲          ▲
+~/.claude/skills  ~/.codex/skills  ~/.pi/skills
+```
+
+Nothing is copied, so `git pull` updates every assistant at once. Verify with:
 
 ```bash
-mkdir -p .agents/skills/testing-suite
-cp -R /path/to/testing-suite/* .agents/skills/testing-suite/
+readlink -f ~/.claude/skills/testing-suite    # → <your clone>/testing-suite
 ```
 
-##### 2. Codex CLI (rtk)
+Full options, manual per-runtime setup, and troubleshooting are in
+[`testing-suite/README.md`](./testing-suite/README.md).
 
-Register the suite via your global configuration:
+## Sharing with others
 
 ```bash
-mkdir -p ~/.codex/skills/
-cp -R testing-suite ~/.codex/skills/testing-suite
+npx skills add djdiptayan1/dj-skills
 ```
 
-##### 3. Pi CLI
+Matches the `origin` remote of this repository. Verify it from a clean machine before circulating
+it — the earlier `dj-skill` (no `s`) in these docs did not resolve.
 
-Register the suite globally in the user configuration folder:
+## Adding a skill to this repo
 
-```bash
-mkdir -p ~/.pi/skills/
-cp -R testing-suite ~/.pi/skills/testing-suite
+One directory per skill, each self-contained:
+
+```
+<skill-name>/
+├── SKILL.md          # entry point: what it is, how to run it
+├── README.md         # human-facing install + usage
+├── install.sh        # runtime registration
+├── agents/           # one file per agent
+├── playbooks/        # sequencing; playbooks own control flow, agents do not
+└── claude-commands/  # slash command definitions
 ```
 
-##### 4. OhMyPi (OMP)
-
-Add the parent directory directly to `~/.omp/agent/config.yml` (our `install.sh` handles this automatically if run):
-
-```yaml
-skills:
-  customDirectories:
-    - /Users/djdiptayan/Documents/Developer/dj skills
-```
-
-##### 5. Global Command (Any Supported Agent)
-
-If you place this suite in a shared Git repository, co-workers can install it directly by running:
-
-```bash
-npx skills add djdiptayan1/dj-skill
-```
+Keep domain-specific rules **out** of skill files. A skill that hardcodes one project's entities
+cannot be shared. Put those in the target repository instead — `testing-suite` reads
+`project-checkpoints.md`, `AGENTS.md`, `CLAUDE.md`, and `.cursorrules` at runtime for exactly this
+reason.

@@ -1,89 +1,135 @@
 #!/bin/bash
-# install.sh - Automated installer for the Testing Suite skill.
+# install.sh — installs the testing-suite skill once into a shared hub, then points
+# every detected runtime at that one copy.
+#
+#   ~/.agents/skills/testing-suite  ->  <this repo>/testing-suite     (the single source)
+#   ~/.claude/skills/               ->  ../../.agents/skills/...      (Claude Code)
+#   ~/.codex/skills/                ->  ~/.agents/skills/...          (Codex)
+#   ~/.pi/skills/                   ->  ~/.agents/skills/...          (Pi)
+#   ~/.omp/agent/config.yml         ->  customDirectories entry       (OhMyPi)
+#   ~/.claude/commands/             ->  slash commands
+#
+# Safe to re-run: every step is idempotent and repairs a stale or missing link.
 
-set -e
+set -euo pipefail
 
 SKILL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PARENT_DIR="$(dirname "$SKILL_DIR")"
+HUB="$HOME/.agents/skills"
+HUB_LINK="$HUB/testing-suite"
 
-echo "🍬 Installing 'testing-suite' skill..."
-echo "Local Path: $SKILL_DIR"
+echo "🍬 Installing 'testing-suite'"
+echo "   source: $SKILL_DIR"
+echo
 
-# 1. OhMyPi (OMP) Installation
+# link <target> <link_path> — create or repair a symlink, never clobber a real directory
+link() {
+    local target="$1" link_path="$2" label="$3"
+    if [ -L "$link_path" ]; then
+        if [ "$(readlink "$link_path")" = "$target" ]; then
+            echo "   ✅ $label (already linked)"
+            return
+        fi
+        rm "$link_path"
+        ln -s "$target" "$link_path"
+        echo "   🔧 $label (relinked, was stale)"
+    elif [ -e "$link_path" ]; then
+        echo "   ⚠️  $label — a real file/dir already exists at $link_path. Skipped."
+        echo "      Remove it manually if you want the symlink instead."
+    else
+        ln -s "$target" "$link_path"
+        echo "   ✅ $label"
+    fi
+}
+
+# ── 1. Shared hub — the single copy everything else points at ───────────────────
+echo "1. Shared hub"
+mkdir -p "$HUB"
+link "$SKILL_DIR" "$HUB_LINK" "~/.agents/skills/testing-suite"
+echo
+
+# ── 2. Claude Code ──────────────────────────────────────────────────────────────
+echo "2. Claude Code"
+if [ -d "$HOME/.claude" ]; then
+    mkdir -p "$HOME/.claude/skills" "$HOME/.claude/commands"
+    # relative link, matching how other skills in ~/.claude/skills reference the hub
+    link "../../.agents/skills/testing-suite" "$HOME/.claude/skills/testing-suite" "~/.claude/skills/testing-suite"
+    for cmd in code-review apply-approved-suite; do
+        link "$SKILL_DIR/claude-commands/$cmd.md" "$HOME/.claude/commands/$cmd.md" "/$cmd"
+    done
+else
+    echo "   ⏭  ~/.claude not found, skipping"
+fi
+echo
+
+# ── 3. Codex & Pi ───────────────────────────────────────────────────────────────
+echo "3. Codex / Pi"
+for runtime_home in "$HOME/.codex" "$HOME/.pi"; do
+    name="$(basename "$runtime_home")"
+    if [ -d "$runtime_home" ]; then
+        mkdir -p "$runtime_home/skills"
+        link "$HUB_LINK" "$runtime_home/skills/testing-suite" "~/$name/skills/testing-suite"
+    else
+        echo "   ⏭  ~/$name not found, skipping"
+    fi
+done
+echo
+
+# ── 4. OhMyPi ───────────────────────────────────────────────────────────────────
+echo "4. OhMyPi"
 OMP_CONFIG="$HOME/.omp/agent/config.yml"
 if [ -f "$OMP_CONFIG" ]; then
-    echo "🔍 Found OhMyPi configuration at: $OMP_CONFIG"
-    
-    # Check if custom directory already added
-    if grep -q "$PARENT_DIR" "$OMP_CONFIG"; then
-        echo "✅ Custom directory already registered in OhMyPi config."
+    if grep -qF "$PARENT_DIR" "$OMP_CONFIG"; then
+        echo "   ✅ customDirectories already includes $PARENT_DIR"
+    elif grep -q "^  customDirectories:" "$OMP_CONFIG"; then
+        printf '    - %s\n' "$PARENT_DIR" >> "$OMP_CONFIG"
+        echo "   ⚠️  appended to end of $OMP_CONFIG — verify it sits under customDirectories:"
+    elif grep -q "^skills:" "$OMP_CONFIG"; then
+        printf '  customDirectories:\n    - %s\n' "$PARENT_DIR" >> "$OMP_CONFIG"
+        echo "   ⚠️  appended a customDirectories block — verify $OMP_CONFIG"
     else
-        echo "🔧 Registering custom directory in $OMP_CONFIG..."
-        
-        # Verify if skills block exists
-        if grep -q "^skills:" "$OMP_CONFIG"; then
-            # Check if customDirectories exists under skills
-            if grep -q "  customDirectories:" "$OMP_CONFIG"; then
-                # Append to existing list (inserting under the line matching customDirectories)
-                sed -i.bak "/  customDirectories:/a\\
-    - $PARENT_DIR" "$OMP_CONFIG" && rm -f "$OMP_CONFIG.bak"
-            else
-                # Append customDirectories to skills block
-                sed -i.bak "s/^skills:/skills:\n  customDirectories:\n    - $(echo $PARENT_DIR | sed 's/\//\\\//g')/g" "$OMP_CONFIG" && rm -f "$OMP_CONFIG.bak"
-            fi
-        else
-            # Append skills block to end of file
-            echo -e "\nskills:\n  customDirectories:\n    - $PARENT_DIR" >> "$OMP_CONFIG"
-        fi
-        echo "✅ OhMyPi configuration updated successfully!"
+        printf '\nskills:\n  customDirectories:\n    - %s\n' "$PARENT_DIR" >> "$OMP_CONFIG"
+        echo "   ✅ added skills.customDirectories to $OMP_CONFIG"
     fi
 else
-    echo "⚠️  OhMyPi config not found at $OMP_CONFIG (Skipping OMP config update)."
+    echo "   ⏭  $OMP_CONFIG not found, skipping"
 fi
+echo
 
-# 2. Claude Code (Project Local Symlinking)
-echo "🔍 Checking for project-local agent directories..."
-for dir in ".agents/skills" ".claude/skills"; do
-    if [ -d "$dir" ]; then
-        if [ -L "$dir/testing-suite" ] || [ -d "$dir/testing-suite" ]; then
-            echo "✅ Skill already linked or copied in project $dir/testing-suite"
-        else
-            echo "🔧 Creating symlink in project $dir..."
-            ln -s "$SKILL_DIR" "$dir/testing-suite"
-            echo "✅ Created symlink: $dir/testing-suite -> $SKILL_DIR"
-        fi
-    fi
-done
-
-# 3. Codex & Pi CLI (User Global Directories)
-echo "🔍 Registering global CLI paths..."
-for path in "$HOME/.codex/skills" "$HOME/.pi/skills"; do
-    parent_path="$(dirname "$path")"
-    if [ -d "$parent_path" ]; then
-        mkdir -p "$path"
-        if [ -L "$path/testing-suite" ] || [ -d "$path/testing-suite" ]; then
-            echo "✅ Skill already linked or copied in global $path/testing-suite"
-        else
-            echo "🔧 Creating symlink in global $path..."
-            ln -s "$SKILL_DIR" "$path/testing-suite"
-            echo "✅ Created symlink: $path/testing-suite -> $SKILL_DIR"
-        fi
-    fi
-done
-
-# 4. Claude Code global slash commands
-if [ -d "$HOME/.claude" ]; then
-    mkdir -p "$HOME/.claude/commands"
-    for cmd in code-review apply-approved-suite; do
-        target="$HOME/.claude/commands/$cmd.md"
-        source="$SKILL_DIR/claude-commands/$cmd.md"
-        if [ -L "$target" ] || [ -f "$target" ]; then
-            echo "✅ Claude slash command already exists: $target"
-        else
-            ln -s "$source" "$target"
-            echo "✅ Created Claude slash command: /$cmd"
+# ── 5. Project-local (only if this repo is not the target) ──────────────────────
+if [ "$PWD" != "$PARENT_DIR" ]; then
+    for dir in ".agents/skills" ".claude/skills"; do
+        if [ -d "$dir" ]; then
+            echo "5. Project-local ($PWD)"
+            link "$HUB_LINK" "$dir/testing-suite" "$dir/testing-suite"
+            echo
+            break
         fi
     done
 fi
 
-echo -e "\n🎉 Installation complete! Restart your coding assistant session to load 'testing-suite'."
+# ── Verify ──────────────────────────────────────────────────────────────────────
+echo "Verifying…"
+fail=0
+for p in "$HUB_LINK" "$HOME/.claude/skills/testing-suite" "$HOME/.claude/commands/code-review.md"; do
+    if [ -e "$p" ]; then
+        echo "   ✅ $p"
+    else
+        echo "   ❌ $p  MISSING"
+        fail=1
+    fi
+done
+[ -f "$HUB_LINK/SKILL.md" ] && echo "   ✅ SKILL.md resolves through the hub" || { echo "   ❌ SKILL.md does NOT resolve through the hub"; fail=1; }
+
+echo
+if [ "$fail" -eq 0 ]; then
+    echo "🎉 Installed. Restart your assistant session, then run:"
+    echo "     /code-review              read-only review of your current changes"
+    echo "     /apply-approved-suite     gated implementation, after you approve findings"
+    echo
+    echo "   Next: copy project-checkpoints.example.md into the repo you want reviewed,"
+    echo "   as project-checkpoints.md, and fill in your own rules."
+else
+    echo "⚠️  Installation incomplete — see the ❌ lines above."
+    exit 1
+fi
