@@ -6,7 +6,7 @@ Custom agentic coding skills, loadable into Claude Code, Codex, Pi, OhMyPi, or C
 
 | Skill | What it does |
 |---|---|
-| [`testing-suite`](./testing-suite) | Multi-agent code review (`/code-review`) and approval-gated implementation (`/apply-approved-suite`), grounded in *Clean Code* & *The Clean Coder*. |
+| [`testing-suite`](./testing-suite) | 15 agents — multi-agent code review (`/code-review`, 9 reviewers) and approval-gated implementation (`/apply-approved-suite`, 6 agents), grounded in *Clean Code* & *The Clean Coder*. |
 
 ## Install & run
 

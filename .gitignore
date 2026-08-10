@@ -6,6 +6,3 @@
 .vscode/
 .idea/
 *.swp
-
-# local, per-machine — never commit a real project-checkpoints.md from another repo
-project-checkpoints.md

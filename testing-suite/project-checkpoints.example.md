@@ -11,6 +11,12 @@ portable: the agents ship the general craft, your repo ships its own scar tissue
 > Rule of thumb: if a checkpoint mentions a table name, a domain entity, a framework version,
 > or a flow that only exists in your product — it belongs in this file, not in an agent prompt.
 
+> ⚠️ **Delete everything above `## How to write a checkpoint`, and every `## Example:` section
+> below, before using this file.** The examples describe a different product. Left in place, every
+> agent treats that domain as a mandatory detection target and your review comes back flagging
+> entities you do not have. Keep the `How to write a checkpoint` block — that is the format the
+> agents parse. Full walkthrough: `README.md` → *First thing to do in a new repo*.
+
 ---
 
 ## How to write a checkpoint

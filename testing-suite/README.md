@@ -3,6 +3,9 @@
 A portable, multi-agent suite for **read-only code review** and **approval-gated implementation**,
 grounded in *Clean Code* and *The Clean Coder*.
 
+**15 agents in total** — 9 read-only reviewers, 6 in the implementation flow. `Orchestrator` runs in
+both and is counted once, under implementation.
+
 **Read-only review — 9 reviewers → 1 verdict:**
 `TestRunner + LinterStaticAnalysis + CodeReviewer + SecurityReviewer + QualityStyleReviewer + TestQualityReviewer + PerformanceReviewer + DependencyDeploymentReviewer + SimplificationMaintainabilityReviewer -> Orchestrator`
 
@@ -224,6 +227,11 @@ Project-local skills shadow global ones. If the repo has its own `.agents/skills
 You haven't added `project-checkpoints.md` to the repo being reviewed. See below — this is the
 single highest-value thing you can do.
 
+**It flags entities that don't exist in your codebase**
+You copied `project-checkpoints.example.md` but left the `## Example:` sections in it. The agents are
+faithfully hunting for another product's domain. Delete every `## Example:` section — see Step 3
+below.
+
 **It flagged a property chain over a DTO as a Law of Demeter violation**
 It shouldn't — that's explicitly excluded. Record the type as a data structure in your
 `project-checkpoints.md` conventions section.
@@ -232,15 +240,92 @@ It shouldn't — that's explicitly excluded. Record the type as a data structure
 
 ## 🎯 First thing to do in a new repo
 
-Copy `project-checkpoints.example.md` into the root of the repository you want reviewed, as
-`project-checkpoints.md`, and replace the examples with your own.
-
 The agents ship **general craft**. Your repository ships **its own scar tissue** — ownership chains,
 error-handling contracts, framework gotchas, flows that must stay consistent. Keeping those in the
 repo rather than in an agent prompt is exactly what lets you hand this suite to someone else.
 
-Every agent reads `project-checkpoints.md`, `AGENTS.md`, `CLAUDE.md`, and `.cursorrules` at runtime.
+All 15 agents read `project-checkpoints.md`, `AGENTS.md`, `CLAUDE.md`, and `.cursorrules` at runtime.
 **Project conventions override generic book heuristics wherever they conflict.**
+
+### Step 1 — copy the template in
+
+From the root of the repository you want reviewed:
+
+```bash
+cp ~/.agents/skills/testing-suite/project-checkpoints.example.md ./project-checkpoints.md
+```
+
+That path is the hub `install.sh` creates, so it works regardless of where you cloned this repo.
+
+### Step 2 — decide whether git tracks it
+
+**Ignoring it does not hide it from the agents.** They read the file from disk by name; git tracking
+has nothing to do with it. Pick by who should get the checkpoints:
+
+```bash
+# local to you — never committed, does not touch a shared file
+echo 'project-checkpoints.md' >> .git/info/exclude
+
+# ignored for everyone on the repo — note this is itself a committed change
+printf '\n# local review checkpoints for the testing-suite\nproject-checkpoints.md\n' >> .gitignore
+```
+
+Or commit it normally, so every reviewer on the team gets the same checkpoints. That is the highest
+value option for a shared codebase — the file *is* the team's accumulated review knowledge.
+
+Either way, only your **filled-in** `project-checkpoints.md` is ever a candidate for ignoring.
+`project-checkpoints.example.md` is the shipped template — it stays committed, here and in any fork,
+because it is what people and agents copy from. If you do add an ignore rule, use the exact filename
+`project-checkpoints.md` so it cannot catch the `.example.md`; never widen it to a glob.
+
+### Step 3 — gut the template ⚠️
+
+**The copy is not usable until you do this.** The example ships with checkpoints from a different
+product — squads, batches, campuses, toast variants. Leave them in and all 15 agents treat that
+domain as mandatory detection targets, and your review comes back flagging things that do not exist
+in your codebase. This is the number one cause of the "findings are generic" complaint below.
+
+Delete:
+- everything above `## How to write a checkpoint` (instructions about copying the template)
+- **every** `## Example:` section
+
+Keep:
+- `## How to write a checkpoint` — the Detect/Why/Correct-form contract the agents parse
+- `## Optional: conventions the reviewers should not fight` — keep the heading, replace the bullets
+
+### Step 4 — fill it with bugs that actually happened
+
+Do not invent checkpoints. Every entry is a bug this repository already shipped. Good places to mine:
+
+```bash
+git log --grep='fix\|hotfix\|revert' --oneline | head -50
+```
+
+then post-mortems, incident channels, and the long comment threads on closed bugs. Each entry needs
+all three fields or the agents cannot act on it:
+
+```markdown
+### Ownership chains
+**Detect:** any query filtering on a leaf entity without walking its ownership chain.
+**Why:** cross-tenant data leakage — shipped in #412, caught by a customer.
+**Correct form:** validate the full chain — `Order -> Account -> Tenant` — before the query runs.
+```
+
+`Detect` has to be something you could grep for. "Be careful with auth" is not a checkpoint. Order
+by how much damage the bug did. **Five real checkpoints beat thirty aspirational ones** — a
+checkpoint that has never caught anything is noise on every single run, so delete it.
+
+### Step 5 — check it worked
+
+```bash
+grep -c '^### ' project-checkpoints.md     # how many checkpoints you have
+grep '## Example:' project-checkpoints.md  # must print nothing
+```
+
+Then run `/code-review` and confirm the findings cite your checkpoints. From then on: **every time a
+bug escapes review, add a checkpoint** — that escape is the signal the suite was missing context.
+Anything it flags that is a deliberate choice here goes under *conventions the reviewers should not
+fight*, and it will stop flagging it.
 
 ---
 
