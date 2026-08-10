@@ -91,21 +91,21 @@ Use `skill://testing-suite/playbooks/apply-approved-suite.md` only after you app
 
 ## The Two Commands
 
-### `code-review.md`: 9-agent read-only review
+### `/code-review`: 9-agent read-only review
 
 Use this when someone says "review my code", "check my PR", "review my uncommitted changes", or points at files/commits/branches. It never edits files.
 
 Flow:
 `TestRunner + LinterStaticAnalysis + CodeReviewer + SecurityReviewer + QualityStyleReviewer + TestQualityReviewer + PerformanceReviewer + DependencyDeploymentReviewer + SimplificationMaintainabilityReviewer -> Orchestrator`
 
-### `apply-approved-suite.md`: 6-agent approved implementation/testing
+### `/apply-approved-suite`: 6-agent approved implementation/testing
 
 Use this only after the review findings are approved and you want the agent to fix them. `TechLead` is the only writer.
 
 Flow:
 `DatabaseAuditor -> Tester -> Critic -> TechLead -> Validator -> Orchestrator`
 
-That is the whole command surface. The old `run-all-subagents*` commands were removed because `code-review.md` covers normal review better and `apply-approved-suite.md` covers approved fixes/testing.
+That is the whole command surface. The old `run-all-subagents*` commands were removed because `/code-review` covers normal review better and `/apply-approved-suite` covers approved fixes/testing.
 
 ## Model And Reasoning Defaults
 

@@ -1,6 +1,6 @@
 ---
 name: testing-suite
-description: Dynamic multi-agent validation, code review, and implementation suite.
+description: Dynamic multi-agent validation, code review (Clean Code & Clean Coder standards), and implementation suite.
 ---
 
 # Testing Suite
@@ -10,17 +10,17 @@ This testing-suite is a plug-and-play multi-agent framework designed to perform 
 ## Discovered Agent Services
 - **TestRunner** (`skill://testing-suite/agents/test-runner.md`): Runs the smallest relevant read-only tests and reports pass/fail details.
 - **LinterStaticAnalysis** (`skill://testing-suite/agents/linter-static-analysis.md`): Runs read-only lint/typecheck diagnostics and reports fixability.
-- **CodeReviewer** (`skill://testing-suite/agents/code-reviewer.md`): Reports up to 5 non-obvious code improvements ranked by impact and effort.
-- **SecurityReviewer** (`skill://testing-suite/agents/security-reviewer.md`): Checks injection, auth, secrets, and sensitive error handling risks.
+- **CodeReviewer** (`skill://testing-suite/agents/code-reviewer.md`): Reports up to 5 non-obvious code improvements grounded in Clean Code heuristics (Law of Demeter, CQS, Stepdown Rule, Null Hygiene, SRP) with before/after code snippets.
+- **SecurityReviewer** (`skill://testing-suite/agents/security-reviewer.md`): Checks injection, auth, secrets, prompt security, and sensitive error handling risks.
 - **QualityStyleReviewer** (`skill://testing-suite/agents/quality-style-reviewer.md`): Reviews complexity, dead code, duplication, and project conventions.
-- **TestQualityReviewer** (`skill://testing-suite/agents/test-quality-reviewer.md`): Reviews coverage ROI, behavior focus, test code quality, and flakiness.
+- **TestQualityReviewer** (`skill://testing-suite/agents/test-quality-reviewer.md`): Reviews F.I.R.S.T. test principles, TDD Laws, Single Concept assertions, and Test Automation Pyramid hygiene.
 - **PerformanceReviewer** (`skill://testing-suite/agents/performance-reviewer.md`): Checks N+1s, blocking work, render churn, leaks, and hot paths.
 - **DependencyDeploymentReviewer** (`skill://testing-suite/agents/dependency-deployment-reviewer.md`): Reviews dependency, compatibility, migration, rollout, and observability risks.
 - **SimplificationMaintainabilityReviewer** (`skill://testing-suite/agents/simplification-maintainability-reviewer.md`): Checks whether the change can be simpler and better scoped.
 - **DatabaseAuditor** (`skill://testing-suite/agents/database-auditor.md`): Dynamically resolves contract surfaces (schemas, API boundaries, UI typings) and validates compatibility.
 - **Tester** (`skill://testing-suite/agents/tester.md`): Detects active test runners (Vitest/Playwright/Jest) and designs comprehensive, non-flaky test specifications.
 - **Critic** (`skill://testing-suite/agents/critic.md`): Multi-tier peer-review pipeline (SDE 1 -> SDE 2 -> Senior -> Head of Engineering) ensuring correctness.
-- **Orchestrator** (`skill://testing-suite/agents/orchestrator.md`): Unified report gatekeeper. Evaluates results, displays recommendations, and requests explicit approval.
+- **Orchestrator** (`skill://testing-suite/agents/orchestrator.md`): Unified report gatekeeper. Evaluates results, displays recommendations with code snippets, and requests explicit approval.
 - **TechLead** (`skill://testing-suite/agents/tech-lead.md`): The ONLY write-authorized agent in this suite. Implements verified changes safely.
 - **Validator** (`skill://testing-suite/agents/validator.md`): Verifies test outcomes, code typechecking, and regression tests.
 
@@ -28,8 +28,12 @@ This testing-suite is a plug-and-play multi-agent framework designed to perform 
 - **Review My Code**: `skill://testing-suite/playbooks/code-review.md`
 - **Apply Approved Fixes**: `skill://testing-suite/playbooks/apply-approved-suite.md`
 
+## Slash Commands
+- `/code-review`: runs `skill://testing-suite/playbooks/code-review.md`
+- `/apply-approved-suite`: runs `skill://testing-suite/playbooks/apply-approved-suite.md`
+
 ## Flow Summary
-- **9-agent review flow** (`code-review.md`): read-only. Use this for uncommitted code, PR files, branch diffs, commits, or file paths. It runs focused reviewers for tests, lint, code, security, style, test quality, performance, deployment, and simplification, then `Orchestrator` gives a merge verdict.
+- **9-agent review flow** (`code-review.md`): read-only. Use this for uncommitted code, PR files, branch diffs, commits, or file paths. It runs 9 focused review agents (TestRunner, Linter, CodeReviewer, Security, QualityStyle, TestQuality, Performance, DependencyDeployment, SimplificationMaintainability), then `Orchestrator` synthesizes findings and gives a merge verdict.
 - **6-agent implementation flow** (`apply-approved-suite.md`): write-gated. Use this only after review findings are approved. It runs `DatabaseAuditor -> Tester -> Critic -> TechLead -> Validator -> Orchestrator`; only `TechLead` may write, and `Validator` runs the post-change tests/typechecks.
 
 ## Recommended Routing

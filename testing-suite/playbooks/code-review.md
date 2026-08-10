@@ -1,5 +1,5 @@
 ---
-description: Run a read-only 9-agent code review with scope inference and synthesized verdict.
+description: Run a read-only 9-agent code review grounded in Clean Code & Clean Coder principles with scope inference and synthesized verdict.
 ---
 
 Run a comprehensive, read-only code review for the current project.
@@ -20,10 +20,10 @@ Apply the Model Routing section from `skill://testing-suite/SKILL.md` before lau
 Launch all 9 agents in parallel when the runtime supports parallel task calls. If not, run them sequentially in this order:
 1. `skill://testing-suite/agents/test-runner.md`
 2. `skill://testing-suite/agents/linter-static-analysis.md`
-3. `skill://testing-suite/agents/code-reviewer.md`
+3. `skill://testing-suite/agents/code-reviewer.md` (Clean Code principles: Law of Demeter, CQS, Stepdown Rule, Null Hygiene, SRP)
 4. `skill://testing-suite/agents/security-reviewer.md`
 5. `skill://testing-suite/agents/quality-style-reviewer.md`
-6. `skill://testing-suite/agents/test-quality-reviewer.md`
+6. `skill://testing-suite/agents/test-quality-reviewer.md` (Clean Coder standards: F.I.R.S.T., 3 TDD Laws, Single Concept, Test Pyramid)
 7. `skill://testing-suite/agents/performance-reviewer.md`
 8. `skill://testing-suite/agents/dependency-deployment-reviewer.md`
 9. `skill://testing-suite/agents/simplification-maintainability-reviewer.md`
@@ -34,8 +34,9 @@ Each agent must receive the resolved `$TARGET_SCOPE`, `$CONFINEMENT_POLICY`, and
 After all agents complete, run `skill://testing-suite/agents/orchestrator.md` in code-review mode. It must:
 1. Separate issues that should be fixed from optional suggestions.
 2. Rank severity across agents: Critical > High > Medium > Low.
-3. Collapse clean agent reports into one-line all-clear entries.
-4. Give one verdict:
+3. Require concise `Current` vs `Clean Code Recommendation` code blocks for Critical and High issues.
+4. Collapse clean agent reports into one-line all-clear entries.
+5. Give one verdict:
    - `Ready to Merge`: tests pass or are not applicable, no critical/high issues, suggestions optional.
    - `Needs Attention`: medium issues or important suggestions worth addressing.
    - `Needs Work`: critical/high issues or failing tests.
@@ -44,12 +45,24 @@ After all agents complete, run `skill://testing-suite/agents/orchestrator.md` in
 ```
 ## Code Review Summary
 
+PR Owner: <name or "Local Developer">
+Title: <PR/Commit title or "Code Review Summary">
+Intent: <1-2 sentence summary of reviewed changes>
+
+### Executive Summary
+- Overall Risk: <Low | Medium | High>
+- Test Pyramid Status: <Unit / Integration / E2E evaluation>
+
 ### Needs Attention (X issues)
-1. [Security] Issue title - file:line
-   Brief description
+1. [Agent / Category] Issue title - file:line
+   - Problem: Brief description
+   - Clean Code Recommendation:
+     ```typescript
+     // Current vs Recommended code block
+     ```
 
 ### Suggestions (X items)
-1. [Quality] Title (HIGH impact, LOW effort)
+1. [Quality] Title (HIGH impact, LOW effort) - file:line
    Brief description
 
 ### All Clear

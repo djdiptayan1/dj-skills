@@ -1,0 +1,2 @@
+description = "Run the testing-suite approved-fix implementation and validation flow"
+prompt = "Read and run skill://testing-suite/playbooks/apply-approved-suite.md. Use {{args}} as the approved findings or target scope if provided. Only TechLead may write; run Validator after implementation."

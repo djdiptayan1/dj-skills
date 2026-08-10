@@ -1,0 +1,22 @@
+{
+  "name": "testing-suite",
+  "version": "0.1.0",
+  "description": "Two-command AI code review and approved-fix workflow.",
+  "author": {
+    "name": "Diptayan"
+  },
+  "skills": "./",
+  "interface": {
+    "displayName": "Testing Suite",
+    "shortDescription": "AI code review and approved fixes",
+    "longDescription": "Run /code-review for read-only PR and uncommitted-code review, then /apply-approved-suite for approved fixes and validation.",
+    "developerName": "Diptayan",
+    "category": "Developer Tools",
+    "capabilities": ["Commands", "Instructions"],
+    "defaultPrompt": [
+      "/code-review my uncommitted changes",
+      "/apply-approved-suite approved findings"
+    ],
+    "brandColor": "#111111"
+  }
+}

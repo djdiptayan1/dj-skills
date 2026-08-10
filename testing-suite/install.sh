@@ -71,4 +71,19 @@ for path in "$HOME/.codex/skills" "$HOME/.pi/skills"; do
     fi
 done
 
+# 4. Claude Code global slash commands
+if [ -d "$HOME/.claude" ]; then
+    mkdir -p "$HOME/.claude/commands"
+    for cmd in code-review apply-approved-suite; do
+        target="$HOME/.claude/commands/$cmd.md"
+        source="$SKILL_DIR/claude-commands/$cmd.md"
+        if [ -L "$target" ] || [ -f "$target" ]; then
+            echo "✅ Claude slash command already exists: $target"
+        else
+            ln -s "$source" "$target"
+            echo "✅ Created Claude slash command: /$cmd"
+        fi
+    done
+fi
+
 echo -e "\n🎉 Installation complete! Restart your coding assistant session to load 'testing-suite'."
